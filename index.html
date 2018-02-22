@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>Time Tracker</title>
+	<script src="https://cdn.jsdelivr.net/npm/vue"></script>
+	<script src="polyfill.js"></script>
+	<script src="lokijs.js"></script>
+	<link rel="stylesheet" href="../css/skeleton.css">
+	<link rel="stylesheet" href="tracker.css">
+</head>
+<body>
+	<div id="app" class="container">
+		<h3>Time Tracker</h3>
+		<form v-on:submit.prevent>
+			<input type="date" v-model="workDate" placeholder="Date" required>
+			<input type="text" v-model="workDesc" autofocus placeholder="Description" ref="workDesc" required>
+			<input type="text" v-model="workTime" placeholder="Work Time" required>
+			<button v-on:click="addEntry" class="button-primary">Add Entry</button>
+			<button v-on:click="deleteAllEntries" class="button-primary u-pull-right">Delete All</button>
+		</form>
+		<hr>
+		<div>
+			<table class="u-full-width">
+				<thead>
+					<th>Date</th>
+					<th>Description</th>
+					<th>Time (minutes)</th>
+					<th></th>
+				</thead>
+				<tbody>
+					<tr v-for="logEntry in logEntries">
+						<td>{{ logEntry.logDate }}</td>
+						<td>{{ logEntry.logDesc }}</td>
+						<td>{{ logEntry.logTime }}</td>
+						<td>
+							<a href="#" v-on:click="editEntry(logEntry.id)">Edit</a>&nbsp;
+							<a href="#" v-on:click="deleteEntry(logEntry.id)">Delete</a>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	<script>
+		var today = new Date();
+		var tmonth = (today.getMonth() + 1).toString().padStart(2, '0');
+		var tdate = today.getDate().toString().padStart(2, '0');
+		var newDate = today.getFullYear() + '-' + tmonth + '-' + tdate;
+
+		var app = new Vue ({
+			el: '#app',
+			data: {
+				workDate: newDate,
+				workDesc: '',
+				workTime: '',
+				logEntries: [],
+				db: null,
+				entries: null,
+			},
+			mounted: function() {
+				this.db = new loki('log.db', {
+					autoload: true,
+					autoloadCallback : this.databaseInitialize,
+					autosave: true, 
+					autosaveInterval: 10000
+				});
+			},
+			beforeDestroy: function() {
+				this.db.saveDatabase();
+			},
+			methods: {
+				databaseInitialize: function() {
+					this.entries = this.db.getCollection("entries");
+					if (this.entries === null) {
+						this.entries = this.db.addCollection("entries");
+					}
+
+					this.refreshDb();
+				},
+				refreshDb: function() {
+					var view = this.entries.addDynamicView("viewLog");
+					view.applySimpleSort("logDate", true);
+
+					var list = view.data();
+
+					this.logEntries = [];
+					for (let i = 0; i < list.length; i++) {
+						// console.log(list[i]);
+						this.logEntries.push(this.createEntry(list[i]));
+					}
+				},
+				addEntry: function() {
+					var newEntry = this.createEntry();
+					this.logEntries.push(newEntry);
+					this.workDesc = '';
+					this.workTime = '';
+					this.$refs.workDesc.focus();
+					this.entries.insert(newEntry);
+					this.refreshDb();
+				},
+				createEntry: function(item) {
+					var result;
+					if (typeof item === "undefined") {
+						var newId = this.entries.maxId;
+						var newTime = this.convertTime(this.workTime);
+
+						item = { id: newId, logDate: this.workDate, logDesc: this.workDesc, logTime: newTime };
+					}
+					result = { id: item.id, logDate: item.logDate, logDesc: item.logDesc, logTime: item.logTime };
+					return result;
+				},
+				updateEntry: function(id) {
+					//this.entries.findAndUpdate({ id: id });
+					//this.refreshDb();
+				},
+				deleteEntry: function(id) {
+					this.entries.findAndRemove({ id: id });
+					this.refreshDb();
+				},
+				deleteAllEntries: function() {
+					if (confirm("Deleting ALL entries. Are you sure?")) {
+						this.entries.findAndRemove();
+						this.refreshDb();
+					}
+				},
+				editEntry: function(id) {
+				},
+				convertTime: function(workTime) {
+					workTime = workTime.trim().toUpperCase();
+					var uom = workTime.substr(workTime.length - 1);
+					var result = workTime;
+
+					switch (uom) {
+						case "M":
+							result = workTime.replace("M", "");
+							break;
+						case "H":
+							result = workTime.replace("H", "") * 60;
+							break;
+						case "D":
+							result = workTime.replace("D", "") * 60 * 8;
+							break;
+						case "W":
+							result = workTime.replace("W", "") * 60 * 8 * 5;
+							break;
+					}
+					return result;
+				}
+			}
+		})
+	</script>
+</body>
+</html>
