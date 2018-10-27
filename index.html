@@ -128,7 +128,7 @@
 				},
 				addEntry: function() {
 					let newEntry = this.createEntry();
-					if (!empty(newEntry.logDesc)) {
+					if (newEntry.logDesc.trim() !== "") {
 						this.logEntries.push(newEntry);
 						this.entries.insert(newEntry);
 						this.refreshDb();
