@@ -34,11 +34,17 @@
 					<tr v-for="logEntry in logEntries">
 						<td>{{ logEntry.logDate }}</td>
 						<td>{{ logEntry.logDesc }}</td>
-						<td>{{ logEntry.logTime }}</td>
+						<td>{{ displayTime(logEntry.logTime) }}</td>
 						<td>
 							<a href="#" v-on:click="editEntry(logEntry.id)">Edit</a>&nbsp;
 							<a href="#" v-on:click="deleteEntry(logEntry.id)">Delete</a>
 						</td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td>&nbsp;</td>
+						<td><b>{{ totalTime }} Hours total</b></td>
+						<td>&nbsp;</td>
 					</tr>
 				</tbody>
 			</table>
@@ -46,12 +52,12 @@
 	</div>
 
 	<script>
-		var today = new Date();
-		var tmonth = (today.getMonth() + 1).toString().padStart(2, '0');
-		var tdate = today.getDate().toString().padStart(2, '0');
-		var newDate = today.getFullYear() + '-' + tmonth + '-' + tdate;
+		let today = new Date();
+		let tmonth = (today.getMonth() + 1).toString().padStart(2, '0');
+		let tdate = today.getDate().toString().padStart(2, '0');
+		let newDate = today.getFullYear() + '-' + tmonth + '-' + tdate;
 
-		var app = new Vue ({
+		let app = new Vue ({
 			el: '#app',
 			data: {
 				workDate: newDate,
@@ -60,6 +66,16 @@
 				logEntries: [],
 				db: null,
 				entries: null,
+			},
+			computed: {
+				totalTime: function() {
+					let result = 0.0;
+					for (let i = 0; i < this.logEntries.length; i++) {
+						entry = this.logEntries[i];
+						result += parseInt(entry.logTime);
+					}
+					return result / 60;
+				}
 			},
 			mounted: function() {
 				this.db = new loki('log.db', {
@@ -82,10 +98,10 @@
 					this.refreshDb();
 				},
 				refreshDb: function() {
-					var view = this.entries.addDynamicView("viewLog");
+					let view = this.entries.addDynamicView("viewLog");
 					view.applySimpleSort("logDate", true);
 
-					var list = view.data();
+					let list = view.data();
 
 					this.logEntries = [];
 					for (let i = 0; i < list.length; i++) {
@@ -94,7 +110,7 @@
 					}
 				},
 				addEntry: function() {
-					var newEntry = this.createEntry();
+					let newEntry = this.createEntry();
 					this.logEntries.push(newEntry);
 					this.workDesc = '';
 					this.workTime = '';
@@ -103,15 +119,13 @@
 					this.refreshDb();
 				},
 				createEntry: function(item) {
-					var result;
 					if (typeof item === "undefined") {
-						var newId = this.entries.maxId;
-						var newTime = this.convertTime(this.workTime);
+						let newId = this.entries.maxId;
+						let newTime = this.convertTime(this.workTime);
 
 						item = { id: newId, logDate: this.workDate, logDesc: this.workDesc, logTime: newTime };
 					}
-					result = { id: item.id, logDate: item.logDate, logDesc: item.logDesc, logTime: item.logTime };
-					return result;
+					return { id: item.id, logDate: item.logDate, logDesc: item.logDesc, logTime: item.logTime };
 				},
 				updateEntry: function(id) {
 					//this.entries.findAndUpdate({ id: id });
@@ -131,8 +145,8 @@
 				},
 				convertTime: function(workTime) {
 					workTime = workTime.trim().toUpperCase();
-					var uom = workTime.substr(workTime.length - 1);
-					var result = workTime;
+					let uom = workTime.substr(workTime.length - 1);
+					let result = workTime;
 
 					switch (uom) {
 						case "M":
@@ -147,6 +161,18 @@
 						case "W":
 							result = workTime.replace("W", "") * 60 * 8 * 5;
 							break;
+					}
+					return result;
+				},
+				displayTime: function(logTime) {
+					if (logTime > 479) {
+						result = logTime / 480 + " D";
+					}
+					else if (logTime > 60) {
+						result = logTime / 60 + " H";
+					}
+					else {
+						result = logTime + " M";
 					}
 					return result;
 				}
