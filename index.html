@@ -148,7 +148,7 @@
 						obj.id = this.editId,
 						obj.logDate = this.workDate,
 						obj.logDesc = this.workDesc,
-						obj.logTime = this.convertTime(this.workTime)
+						obj.logTime = this.convertTime(this.workTime.toString())
 					});
 					this.refreshDb();
 					this.clearEntry();
