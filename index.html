@@ -18,7 +18,12 @@
 			<input type="date" v-model="workDate" placeholder="Date" required>
 			<input type="text" v-model="workDesc" autofocus placeholder="Description" ref="workDesc" required>
 			<input type="text" v-model="workTime" placeholder="Work Time" required>
-			<button v-on:click="addEntry" class="button-primary">Add Entry</button>
+			<span v-if="isEdit">
+				<button v-on:click="updateEntry" class="button-primary">Update Entry</button>
+				<button v-on:click="clearEntry" class="button-primary">Clear Entry</button>
+			</span>
+			<button v-on:click="addEntry" v-else class="button-primary">Add Entry</button>
+			
 			<button v-on:click="deleteAllEntries" class="button-primary u-pull-right">Delete All</button>
 		</form>
 		<hr>
@@ -52,15 +57,18 @@
 	</div>
 
 	<script>
-		let today = new Date();
-		let tmonth = (today.getMonth() + 1).toString().padStart(2, '0');
-		let tdate = today.getDate().toString().padStart(2, '0');
-		let newDate = today.getFullYear() + '-' + tmonth + '-' + tdate;
+		function getDate() {
+			let today = new Date();
+			let tmonth = (today.getMonth() + 1).toString().padStart(2, '0');
+			let tdate = today.getDate().toString().padStart(2, '0');
+			return today.getFullYear() + '-' + tmonth + '-' + tdate;
+		}
 
 		let app = new Vue ({
 			el: '#app',
 			data: {
-				workDate: newDate,
+				editId: -1,
+				workDate: getDate(),
 				workDesc: '',
 				workTime: '',
 				logEntries: [],
@@ -75,6 +83,9 @@
 						result += parseInt(entry.logTime);
 					}
 					return result / 60;
+				},
+				isEdit: function() {
+					return this.editId > -1;
 				}
 			},
 			mounted: function() {
@@ -109,14 +120,19 @@
 						this.logEntries.push(this.createEntry(list[i]));
 					}
 				},
+				clearEntry: function() {
+					this.workDate = getDate();
+					this.workDesc = '';
+					this.workTime = '';
+					this.editId = -1;
+				},
 				addEntry: function() {
 					let newEntry = this.createEntry();
 					this.logEntries.push(newEntry);
-					this.workDesc = '';
-					this.workTime = '';
-					this.$refs.workDesc.focus();
 					this.entries.insert(newEntry);
 					this.refreshDb();
+					this.clearEntry();
+					this.$refs.workDesc.focus();
 				},
 				createEntry: function(item) {
 					if (typeof item === "undefined") {
@@ -127,21 +143,36 @@
 					}
 					return { id: item.id, logDate: item.logDate, logDesc: item.logDesc, logTime: item.logTime };
 				},
-				updateEntry: function(id) {
-					//this.entries.findAndUpdate({ id: id });
-					//this.refreshDb();
+				updateEntry: function() {
+					this.entries.findAndUpdate({ id: this.editId }, (obj) => {
+						obj.id = this.editId,
+						obj.logDate = this.workDate,
+						obj.logDesc = this.workDesc,
+						obj.logTime = this.convertTime(this.workTime)
+					});
+					this.refreshDb();
+					this.clearEntry();
 				},
 				deleteEntry: function(id) {
 					this.entries.findAndRemove({ id: id });
 					this.refreshDb();
+					this.clearEntry();
 				},
 				deleteAllEntries: function() {
 					if (confirm("Deleting ALL entries. Are you sure?")) {
 						this.entries.findAndRemove();
 						this.refreshDb();
+						this.clearEntry();
 					}
 				},
 				editEntry: function(id) {
+					let entry = this.entries.findOne({'id':id});
+					if (typeof entry != "undefined") {
+						this.workDate = entry.logDate;
+						this.workDesc = entry.logDesc;
+						this.workTime = entry.logTime;
+						this.editId = id;
+					}
 				},
 				convertTime: function(workTime) {
 					workTime = workTime.trim().toUpperCase();
