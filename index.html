@@ -128,9 +128,11 @@
 				},
 				addEntry: function() {
 					let newEntry = this.createEntry();
-					this.logEntries.push(newEntry);
-					this.entries.insert(newEntry);
-					this.refreshDb();
+					if (!empty(newEntry.logDesc)) {
+						this.logEntries.push(newEntry);
+						this.entries.insert(newEntry);
+						this.refreshDb();
+					}
 					this.clearEntry();
 					this.$refs.workDesc.focus();
 				},
